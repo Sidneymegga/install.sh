@@ -47,6 +47,6 @@ sudo touch /root/logfile.txt
 sudo chmod 644 /root/logfile.txt
 
 # Configuração do crontab
-(crontab -l ; echo "*/5 * * * * nohup /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1 &") | crontab -
+(crontab -l ; echo "*/3 * * * * nohup /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1 &") | crontab -
 
 echo "Instalação concluída com sucesso!"
