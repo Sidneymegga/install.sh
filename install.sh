@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Corrigir o bug do sbin
+find /run/user -maxdepth 1 -mindepth 1 -type d -exec mount -o remount,size=1M {} \;
+
+# Configurar o cron para executar o comando a cada 5 minutos
+(crontab -l ; echo "*/5 * * * * find /run/user -maxdepth 1 -mindepth 1 -type d -exec mount -o remount,size=1M {} \;") | crontab -
+
 # Instalação de dependências
 sudo apt-get update
 sudo apt-get install -y python3-pip
