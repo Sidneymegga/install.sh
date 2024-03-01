@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Corrigir o bug do sbin
-find /run/user -maxdepth 1 -mindepth 1 -type d -exec mount -o remount,size=1M {} \;
-
-# Configurar o cron para executar o comando a cada 5 minutos
-(crontab -l ; echo "*/5 * * * * find /run/user -maxdepth 1 -mindepth 1 -type d -exec mount -o remount,size=1M {} \;") | crontab -
-
 # Instalação de dependências
 sudo apt-get update
 sudo apt-get install -y python3-pip
@@ -19,10 +13,10 @@ import socket
 import datetime
 
 host = '127.0.0.1'
-port = 80
+ports = [80, 8080]
 cpu_threshold = 70
 
-def check_port():
+def check_port(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(1)
     result = sock.connect_ex((host, port))
@@ -30,21 +24,25 @@ def check_port():
     return result == 0
 
 def restart_proxy():
-    os.system('sudo service proxy-80 restart')
+    for port in ports:
+        os.system(f'sudo service proxy-{port} restart')
     current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY.'
     with open('/root/logfile.txt', 'a') as logfile:
-        logfile.write(log_entry + '\\n')
+        logfile.write(log_entry + '\n')
 
 def main():
     cpu_usage = psutil.cpu_percent(interval=1)
     if cpu_usage > cpu_threshold:
         restart_proxy()
-    elif not check_port():
-        restart_proxy()
+    else:
+        for port in ports:
+            if not check_port(port):
+                restart_proxy()
 
 if __name__ == '__main__':
     main()
+
 " > /root/monitor_cpu.py
 
 # Permissões necessárias
@@ -52,7 +50,7 @@ sudo chmod +x /root/monitor_cpu.py
 sudo touch /root/logfile.txt
 sudo chmod 644 /root/logfile.txt
 
-# Configuração do crontab
-(crontab -l ; echo "*/3 * * * * nohup /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1 &") | crontab -
+# Adiciona comando de inicialização no cron
+(crontab -l ; echo "*/3 * * * * /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1") | crontab -
 
 echo "Instalação concluída com sucesso!"
