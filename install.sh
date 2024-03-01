@@ -2,6 +2,7 @@ import psutil
 import os
 import datetime
 import subprocess
+import socket
 
 host = '127.0.0.1'
 ports = [80, 8080]
@@ -33,6 +34,7 @@ def restart_journald():
 
 def main():
     cpu_usage = psutil.cpu_percent(interval=1)
+    journald_cpu_usage = 0
     print(f'CPU Usage: {cpu_usage}')
     
     for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
