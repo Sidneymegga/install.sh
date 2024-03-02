@@ -15,6 +15,8 @@ sudo chmod 644 /root/logfile.txt
 echo "
 #!/usr/bin/env python3
 
+#!/usr/bin/env python3
+
 import psutil
 import os
 import datetime
@@ -72,12 +74,7 @@ def main():
                 journald_cpu_usage = proc.info['cpu_percent']
                 break
 
-        current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f'{current_time} - CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%'
-        with open('/root/logfile.txt', 'a') as logfile:
-            logfile.write(log_entry + '\n')
-
-        print(log_entry)
+        print(f'CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%')
 
         if cpu_usage > cpu_threshold:
             verification_count += 1
@@ -88,8 +85,8 @@ def main():
 
         if verification_count == 3:
             restart_proxy()
-            verification_count = 0
             time.sleep(180)  # Aguarda 3 minutos após reiniciar as portas antes de retomar a verificação
+            verification_count = 0
         else:
             time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
 
