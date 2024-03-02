@@ -12,10 +12,12 @@ import os
 import datetime
 import subprocess
 import socket
+import time
 
 host = "127.0.0.1"
 ports = [80, 8080]
-cpu_threshold = 90
+cpu_threshold = 80
+verification_count = 0
 
 def check_port(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,29 +35,26 @@ def restart_proxy():
         logfile.write(log_entry + "\n")
     print(log_entry)
 
-def restart_journald():
-    subprocess.run(["sudo", "systemctl", "restart", "systemd-journald"])
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"{current_time} - REINICIANDO JOURNALD DEVIDO AO ALTO USO DE CPU."
-    with open("/root/logfile.txt", "a") as logfile:
-        logfile.write(log_entry + "\n")
-    print(log_entry)
-
 def main():
-    cpu_usage = psutil.cpu_percent(interval=1)
-    print(f"CPU Usage: {cpu_usage}")
+    global verification_count
 
-    for proc in psutil.process_iter(["pid", "name", "cpu_percent"]):
-        if proc.info["name"] == "systemd-journald":
-            journald_cpu_usage = proc.info["cpu_percent"]
-            print(f"Journald CPU Usage: {journald_cpu_usage}")
-            break
+    cpu_usage = psutil.cpu_percent()
+    print(f"CPU Usage: {cpu_usage}")  # Mostra o uso da CPU ao iniciar o script
 
-    if cpu_usage > cpu_threshold:
+    # Loop para fazer 3 verificações a cada 10 minutos
+    for i in range(3):
+        cpu_usage = psutil.cpu_percent(interval=1)
+        print(f"CPU Usage: {cpu_usage}")
+
+        if cpu_usage > cpu_threshold:
+            verification_count += 1
+
+        # Espera 1 minuto antes da próxima verificação
+        time.sleep(60)
+
+    # Se todas as 3 verificações tiverem um uso alto da CPU, reinicie as portas
+    if verification_count == 3:
         restart_proxy()
-
-    if journald_cpu_usage > cpu_threshold:
-        restart_journald()
 
 if __name__ == "__main__":
     main()
