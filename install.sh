@@ -101,7 +101,6 @@ if __name__ == '__main__':
 sudo chmod +x /root/monitor_cpu.py
 
 # Configuração do cron para executar o monitoramento a cada 10 minutos
-(crontab -l ; echo "*/10 * * * * /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1") | crontab -
 (crontab -l ; echo "@reboot sleep 120 && /usr/bin/python3 /root/monitor_cpu.py >> /root/logfile.txt 2>&1") | crontab -
 
 echo "Instalação concluída com sucesso!"
