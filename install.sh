@@ -14,7 +14,7 @@ import subprocess
 import socket
 import time
 
-host = "127.0.0.1"
+host = '127.0.0.1'
 ports = [80, 8080]
 cpu_threshold = 80
 verification_count = 0
@@ -28,23 +28,23 @@ def check_port(port):
 
 def restart_proxy():
     for port in ports:
-        os.system(f"sudo service proxy-{port} restart")
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"{current_time} - MEGGA CLOUD REINICIANDO PROXY."
-    with open("/root/logfile.txt", "a") as logfile:
-        logfile.write(log_entry + "\n")
+        os.system(f'sudo service proxy-{port} restart')
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY.'
+    with open('/root/logfile.txt', 'a') as logfile:
+        logfile.write(log_entry + '\n')
     print(log_entry)
 
 def main():
     global verification_count
 
     cpu_usage = psutil.cpu_percent()
-    print(f"CPU Usage: {cpu_usage}")  # Mostra o uso da CPU ao iniciar o script
+    print(f'CPU Usage: {cpu_usage}')  # Mostra o uso da CPU ao iniciar o script
 
     # Loop para fazer 3 verificações a cada 10 minutos
     for i in range(3):
         cpu_usage = psutil.cpu_percent(interval=1)
-        print(f"CPU Usage: {cpu_usage}")
+        print(f'CPU Usage: {cpu_usage}')
 
         if cpu_usage > cpu_threshold:
             verification_count += 1
@@ -56,7 +56,7 @@ def main():
     if verification_count == 3:
         restart_proxy()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
 ' > /root/monitor_cpu.py
 
