@@ -5,8 +5,14 @@ sudo apt-get update
 sudo apt-get install -y python3-pip
 sudo pip3 install psutil
 
+# Criação do arquivo logfile.txt
+sudo touch /root/logfile.txt
+
+# Permissões necessárias para o arquivo logfile.txt
+sudo chmod 644 /root/logfile.txt
+
 # Criação do script de monitoramento
-echo '
+echo "
 #!/usr/bin/env python3
 
 import psutil
@@ -77,7 +83,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-' > /root/monitor_cpu.py
+" > /root/monitor_cpu.py
 
 # Permissões necessárias para o script de monitoramento
 sudo chmod +x /root/monitor_cpu.py
