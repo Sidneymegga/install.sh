@@ -24,7 +24,7 @@ import time
 
 host = '127.0.0.1'
 ports = [80, 8080]
-cpu_threshold = 100
+cpu_threshold = 90
 journald_threshold = 70
 verification_count = 0
 
@@ -39,7 +39,8 @@ def restart_proxy():
     for port in ports:
         os.system(f'sudo service proxy-{port} restart')
     current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY POR ALTO USO DE CPU.'
+    cpu_usage = psutil.cpu_percent()
+    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso de CPU ({cpu_usage:.1f}%).'
     with open('/root/logfile.txt', 'a') as logfile:
         logfile.write(log_entry + '\n')
     print(log_entry)  
@@ -47,7 +48,14 @@ def restart_proxy():
 def restart_journald():
     subprocess.run(['sudo', 'systemctl', 'restart', 'systemd-journald'])
     current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = f'{current_time} - REINICIANDO JOURNALD DEVIDO AO ALTO USO DE JOURNALD.'
+    journald_cpu_usage = 0
+
+    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+        if proc.info['name'] == 'systemd-journald':
+            journald_cpu_usage = proc.info['cpu_percent']
+            break
+
+    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO JOURNALD devido ao alto uso de Journald ({journald_cpu_usage:.1f}%).'
     with open('/root/logfile.txt', 'a') as logfile:
         logfile.write(log_entry + '\n')
     print(log_entry)
@@ -56,7 +64,7 @@ def main():
     global verification_count
 
     while True:
-        cpu_usage = psutil.cpu_percent(interval=1)
+        cpu_usage = psutil.cpu_percent(interval=5)
         journald_cpu_usage = 0
 
         for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
@@ -64,22 +72,26 @@ def main():
                 journald_cpu_usage = proc.info['cpu_percent']
                 break
 
-        print(f'CPU Usage: {cpu_usage}')
-        print(f'Journald CPU Usage: {journald_cpu_usage}')
+        current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f'{current_time} - CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%'
+        with open('/root/logfile.txt', 'a') as logfile:
+            logfile.write(log_entry + '\n')
 
-        if cpu_usage > cpu_threshold or journald_cpu_usage > journald_threshold:
+        print(log_entry)
+
+        if cpu_usage > cpu_threshold:
+            verification_count += 1
+        elif journald_cpu_usage > journald_threshold:
             verification_count += 1
         else:
             verification_count = 0
 
         if verification_count == 3:
-            if cpu_usage > cpu_threshold:
-                restart_proxy()
-            if journald_cpu_usage > journald_threshold:
-                restart_journald()
-            verification_count = 0  # Reseta a contagem após reiniciar
-
-        time.sleep(5)  # Aguarda 1 minuto antes de verificar novamente
+            restart_proxy()
+            verification_count = 0
+            time.sleep(180)  # Aguarda 3 minutos após reiniciar as portas antes de retomar a verificação
+        else:
+            time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
 
 if __name__ == '__main__':
     main()
