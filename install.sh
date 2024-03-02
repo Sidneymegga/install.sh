@@ -66,7 +66,7 @@ sudo chmod +x /root/monitor_cpu.py
 sudo touch /root/logfile.txt
 sudo chmod 644 /root/logfile.txt
 
-# Adiciona comando de inicialização no cron
-(crontab -l ; echo "*/3 * * * * /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1") | crontab -
+# Adiciona comando de inicialização no cron para executar a cada 10 minutos
+(crontab -l ; echo "*/10 * * * * /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1") | crontab -
 
 echo "Instalação concluída com sucesso!"
