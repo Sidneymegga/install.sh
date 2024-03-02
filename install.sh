@@ -7,6 +7,8 @@ sudo pip3 install psutil
 
 # Criação do script de monitoramento
 echo '
+#!/usr/bin/env python3
+
 import psutil
 import os
 import datetime
@@ -14,9 +16,10 @@ import subprocess
 import socket
 import time
 
-host = "127.0.0.1"
+host = '127.0.0.1'
 ports = [80, 8080]
-cpu_threshold = 80
+cpu_threshold = 100
+journald_threshold = 70
 verification_count = 0
 
 def check_port(port):
@@ -28,35 +31,51 @@ def check_port(port):
 
 def restart_proxy():
     for port in ports:
-        os.system(f"sudo service proxy-{port} restart")
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"{current_time} - MEGGA CLOUD REINICIANDO PROXY."
-    with open("/root/logfile.txt", "a") as logfile:
-        logfile.write(log_entry + "\n")
+        os.system(f'sudo service proxy-{port} restart')
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY POR ALTO USO DE CPU.'
+    with open('/root/logfile.txt', 'a') as logfile:
+        logfile.write(log_entry + '\n')
+    print(log_entry)  
+
+def restart_journald():
+    subprocess.run(['sudo', 'systemctl', 'restart', 'systemd-journald'])
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_entry = f'{current_time} - REINICIANDO JOURNALD DEVIDO AO ALTO USO DE JOURNALD.'
+    with open('/root/logfile.txt', 'a') as logfile:
+        logfile.write(log_entry + '\n')
     print(log_entry)
 
 def main():
     global verification_count
 
-    cpu_usage = psutil.cpu_percent()
-    print(f"CPU Usage: {cpu_usage}")  # Mostra o uso da CPU ao iniciar o script
-
-    # Loop para fazer 3 verificações a cada 10 minutos
-    for i in range(3):
+    while True:
         cpu_usage = psutil.cpu_percent(interval=1)
-        print(f"CPU Usage: {cpu_usage}")
+        journald_cpu_usage = 0
 
-        if cpu_usage > cpu_threshold:
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+            if proc.info['name'] == 'systemd-journald':
+                journald_cpu_usage = proc.info['cpu_percent']
+                break
+
+        print(f'CPU Usage: {cpu_usage}')
+        print(f'Journald CPU Usage: {journald_cpu_usage}')
+
+        if cpu_usage > cpu_threshold or journald_cpu_usage > journald_threshold:
             verification_count += 1
+        else:
+            verification_count = 0
 
-        # Espera 1 minuto antes da próxima verificação
-        time.sleep(60)
+        if verification_count == 3:
+            if cpu_usage > cpu_threshold:
+                restart_proxy()
+            if journald_cpu_usage > journald_threshold:
+                restart_journald()
+            verification_count = 0  # Reseta a contagem após reiniciar
 
-    # Se todas as 3 verificações tiverem um uso alto da CPU, reinicie as portas
-    if verification_count == 3:
-        restart_proxy()
+        time.sleep(5)  # Aguarda 1 minuto antes de verificar novamente
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
 ' > /root/monitor_cpu.py
 
@@ -65,5 +84,6 @@ sudo chmod +x /root/monitor_cpu.py
 
 # Configuração do cron para executar o monitoramento a cada 10 minutos
 (crontab -l ; echo "*/10 * * * * /usr/bin/python3 /root/monitor_cpu.py > /dev/null 2>&1") | crontab -
+(crontab -l ; echo "@reboot sleep 120 && /usr/bin/python3 /root/monitor_cpu.py >> /root/logfile.txt 2>&1") | crontab -
 
 echo "Instalação concluída com sucesso!"
