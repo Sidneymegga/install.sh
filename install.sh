@@ -11,10 +11,11 @@ import psutil
 import os
 import datetime
 import subprocess
+import socket
 
 host = "127.0.0.1"
 ports = [80, 8080]
-cpu_threshold = 70
+cpu_threshold = 90
 
 def check_port(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
