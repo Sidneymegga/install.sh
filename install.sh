@@ -15,8 +15,6 @@ sudo chmod 644 /root/logfile.txt
 echo "
 #!/usr/bin/env python3
 
-#!/usr/bin/env python3
-
 import psutil
 import os
 import datetime
@@ -85,10 +83,10 @@ def main():
 
         if verification_count == 3:
             restart_proxy()
-            time.sleep(180)  # Aguarda 3 minutos após reiniciar as portas antes de retomar a verificação
-            verification_count = 0
+            verification_count = 0  # Reset the count after restarting
+            time.sleep(180)  # Wait 3 minutes after restarting the ports before resuming verification
         else:
-            time.sleep(5)  # Aguarda 5 segundos antes de verificar novamente
+            time.sleep(5)  # Wait 5 seconds before checking again
 
 if __name__ == '__main__':
     main()
