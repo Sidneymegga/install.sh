@@ -36,57 +36,29 @@ def check_port(port):
     return result == 0
 
 def restart_proxy():
-    for port in ports:
-        os.system(f'sudo service proxy-{port} restart')
-    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    global verification_count
     cpu_usage = psutil.cpu_percent()
-    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso de CPU ({cpu_usage:.1f}%).'
-    with open('/root/logfile.txt', 'a') as logfile:
-        logfile.write(log_entry + '\n')
-    print(log_entry)  
-
-def restart_journald():
-    subprocess.run(['sudo', 'systemctl', 'restart', 'systemd-journald'])
-    current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    journald_cpu_usage = 0
-
-    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
-        if proc.info['name'] == 'systemd-journald':
-            journald_cpu_usage = proc.info['cpu_percent']
-            break
-
-    log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO JOURNALD devido ao alto uso de Journald ({journald_cpu_usage:.1f}%).'
-    with open('/root/logfile.txt', 'a') as logfile:
-        logfile.write(log_entry + '\n')
-    print(log_entry)
+    if cpu_usage > cpu_threshold:
+        verification_count += 1
+        if verification_count == 3:
+            for port in ports:
+                os.system(f'sudo service proxy-{port} restart')
+            current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso de CPU ({cpu_usage:.1f}%).'
+            with open('/root/logfile.txt', 'a') as logfile:
+                logfile.write(log_entry + '\n')
+            print(log_entry)  
+            verification_count = 0  # Reset the count after restarting
+            time.sleep(180)  # Wait 3 minutes after restarting before resuming verification
+    else:
+        print(f'CPU Usage: {cpu_usage:.1f}%')
 
 def main():
     global verification_count
 
     while True:
-        cpu_usage = psutil.cpu_percent(interval=5)
-        journald_cpu_usage = 0
-
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
-            if proc.info['name'] == 'systemd-journald':
-                journald_cpu_usage = proc.info['cpu_percent']
-                break
-
-        print(f'CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%')
-
-        if cpu_usage > cpu_threshold:
-            verification_count += 1
-        elif journald_cpu_usage > journald_threshold:
-            verification_count += 1
-        else:
-            verification_count = 0
-
-        if verification_count == 3:
-            restart_proxy()
-            verification_count = 0  # Reset the count after restarting
-            time.sleep(180)  # Wait 3 minutes after restarting the ports before resuming verification
-        else:
-            time.sleep(5)  # Wait 5 seconds before checking again
+        restart_proxy()
+        time.sleep(5)  # Wait 5 seconds before checking again
 
 if __name__ == '__main__':
     main()
