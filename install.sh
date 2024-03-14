@@ -27,7 +27,9 @@ ports = [80, 8080]
 cpu_threshold = 90
 journald_threshold = 70
 verification_count = 0
-log_file_path = '/root/logfile.txt'
+
+LOG_FILE = '/root/logfile.txt'
+CLEAN_INTERVAL = 3600  # Limpar o arquivo de log a cada 1 hora
 
 def check_port(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -36,68 +38,48 @@ def check_port(port):
     sock.close()
     return result == 0
 
-def restart_proxy(reason):
+def restart_proxy():
     global verification_count
-    if reason == 'cpu':
-        cpu_usage = psutil.cpu_percent()
-        log_entry = f'{datetime.datetime.now()} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso de CPU ({cpu_usage:.1f}%).'
-    elif reason == 'journald':
-        log_entry = f'{datetime.datetime.now()} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso do Journald.'
+    cpu_usage = psutil.cpu_percent()
+    journald_cpu_usage = 0
+    
+    # Verificar o uso do jornald
+    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+        if proc.info['name'] == 'systemd-journald':
+            journald_cpu_usage = proc.info['cpu_percent']
+            break
+    
+    if cpu_usage > cpu_threshold or journald_cpu_usage > journald_threshold:
+        verification_count += 1
+        if verification_count == 3:
+            for port in ports:
+                os.system(f'sudo service proxy-{port} restart')
+            current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_entry = f'{current_time} - MEGGA CLOUD REINICIANDO PROXY devido ao alto uso de CPU ({cpu_usage:.1f}%) e Journald CPU Usage: ({journald_cpu_usage:.1f}%).'
+            with open(LOG_FILE, 'a') as logfile:
+                logfile.write(log_entry + '\n')
+            print(log_entry)  
+            verification_count = 0  # Resetar a contagem após reiniciar
+            time.sleep(180)  # Esperar 3 minutos após reiniciar antes de retomar a verificação
     else:
-        return  # Não reinicia se a razão não for reconhecida
-
-    for port in ports:
-        os.system(f'sudo service proxy-{port} restart')
-    with open(log_file_path, 'a') as logfile:
-        logfile.write(log_entry + '\n')
-    print(log_entry)
-    verification_count = 0  # Reset the count after restarting
-    time.sleep(180)  # Wait 3 minutes after restarting before resuming verification
+        print(f'CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%')
 
 def clean_log_file():
-    # Verifica se o arquivo de log existe
-    if os.path.exists(log_file_path):
-        # Abre o arquivo em modo de escrita para limpar seu conteúdo
-        with open(log_file_path, 'w') as logfile:
-            logfile.write('')
-        print(f'O arquivo de log {log_file_path} foi limpo.')
+    with open(LOG_FILE, 'w') as logfile:
+        logfile.write('')
+    print(f'O arquivo de log {LOG_FILE} foi limpo.')
 
 def main():
     global verification_count
 
-    # Limpa o arquivo de log inicialmente
-    clean_log_file()
+    clean_log_file()  # Limpar o arquivo de log inicialmente
 
     while True:
-        cpu_usage = psutil.cpu_percent()
-        journald_cpu_usage = 0
+        restart_proxy()
+        time.sleep(5)  # Esperar 5 segundos antes da próxima verificação
 
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
-            if proc.info['name'] == 'systemd-journald':
-                journald_cpu_usage = proc.info['cpu_percent']
-                break
-
-        print(f'CPU Usage: {cpu_usage:.1f}%, Journald CPU Usage: {journald_cpu_usage:.1f}%')
-
-        if cpu_usage > cpu_threshold:
-            verification_count += 1
-        elif journald_cpu_usage > journald_threshold:
-            verification_count += 1
-        else:
-            verification_count = 0
-
-        if verification_count == 3:
-            if cpu_usage > cpu_threshold:
-                restart_proxy('cpu')
-            elif journald_cpu_usage > journald_threshold:
-                restart_proxy('journald')
-        time.sleep(5)  # Wait 5 seconds before checking again
-
-        # Verifica se passaram 5 horas desde a última limpeza do arquivo de log
-        if datetime.datetime.now().hour % 5 == 0:
-            clean_log_file()
-            # Espera 1 minuto antes de limpar novamente para garantir que não haja sobreposição com o próximo ciclo de limpeza
-            time.sleep(60)
+        if time.time() % CLEAN_INTERVAL < 5:
+            clean_log_file()  # Limpar o arquivo de log a cada hora
 
 if __name__ == '__main__':
     main()
